@@ -29,9 +29,11 @@ func TestKeygen(t *testing.T) {
 	}
 
 	_, _ = pub, priv
-	asHex := hex.EncodeToString(pub)
-	fmt.Println(tries, "tries", asHex)
-	if !(keyRegexp.MatchString(asHex)) {
+	pubAsHex, privAsHex := hex.EncodeToString(pub), hex.EncodeToString(priv)
+	fmt.Println(tries, "tries")
+	fmt.Println("pub", pubAsHex)
+	fmt.Println("pub", privAsHex)
+	if !(keyRegexp.MatchString(pubAsHex)) {
 		t.Fatalf("regexp does not match")
 	}
 }
