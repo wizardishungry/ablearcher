@@ -1,4 +1,4 @@
-module jonwillia.ms/able-archer
+module jonwillia.ms/ablearcher
 
 go 1.18
 
