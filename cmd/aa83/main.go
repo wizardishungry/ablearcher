@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
+	"runtime/debug"
 )
 
 var commands []subCommand
@@ -14,6 +16,14 @@ type subCommand struct {
 }
 
 func main() {
+
+	bi, _ := debug.ReadBuildInfo()
+	fmt.Println(bi.Main)
+	e, _ := os.Executable()
+	n := path.Base(e)
+	fmt.Println(n) // TODO: UserConfigDir
+	fmt.Println(os.UserConfigDir())
+
 	args := os.Args[1:]
 	if len(args) < 1 {
 		args = []string{"help"}

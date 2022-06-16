@@ -141,6 +141,7 @@ func parseAuthHeader(ah string) ([]byte, error) {
 	if ah == "" {
 		return nil, ErrMissingAuth
 	}
+	fmt.Println("auth is", ah)
 	n, err := fmt.Sscanf(ah, "Spring-83 Signature=%x", &sigBytes)
 	if err != nil {
 		return nil, err
@@ -165,6 +166,7 @@ func (s *service) handlePut(w http.ResponseWriter, r *http.Request, key string) 
 
 	sr := &storageRecord{
 		body: s83p.body,
+		auth: s83p.authorization,
 		time: s83p.ifUnmodifiedSince, // TODO needs to come out of sig
 	}
 
