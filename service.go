@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,8 +15,6 @@ import (
 type service struct {
 	storageProvider
 }
-
-type storageProvider interface{}
 
 func (s *service) handler() http.Handler {
 	return http.HandlerFunc(s.handleFunc)
@@ -49,11 +48,25 @@ func (s *service) handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *service) handleGet(w http.ResponseWriter, r *http.Request, key string) {
+	ctx := r.Context()
 
+	keyArr, err := parseKeyFromRequestURL(r)
+	if err != nil {
+
+	}
+	sr, err := s.storageProvider.Get(ctx, keyArr)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(sr.body)
 }
 
 type spring83Post struct {
-	key               []byte
+	key               storageKey
 	version           int
 	ifUnmodifiedSince time.Time
 	authorization     []byte
@@ -66,7 +79,19 @@ const (
 	headerAuthorization     = "Authorization"
 )
 
+func parseKeyFromRequestURL(r *http.Request) (s storageKey, err error) {
+	key, err := hex.DecodeString(r.URL.Path[1:])
+	if err != nil {
+		return s, err
+	}
+	return sliceToStorageKey(key)
+}
+
 func parseSpring83PostFromRequest(r *http.Request) (*spring83Post, error) {
+	keyArr, err := parseKeyFromRequestURL(r)
+	if err != nil {
+		return nil, err
+	}
 
 	ver, err := strconv.ParseInt(r.Header.Get(headerVersion), 10, 64)
 	if err != nil {
@@ -83,13 +108,8 @@ func parseSpring83PostFromRequest(r *http.Request) (*spring83Post, error) {
 		return nil, err
 	}
 
-	key, err := hex.DecodeString(r.URL.Path[1:])
-	if err != nil {
-		return nil, err
-	}
-
 	s83p := &spring83Post{
-		key:               key,
+		key:               keyArr,
 		version:           int(ver),
 		ifUnmodifiedSince: ifUnmodifiedSince,
 		authorization:     auth,
@@ -105,8 +125,13 @@ func parseSpring83PostFromRequest(r *http.Request) (*spring83Post, error) {
 	return s83p, nil
 }
 
+func (s83p *spring83Post) Validate() error {
+	return nil
+}
+
 func (s83p *spring83Post) Verify() bool {
-	return ed25519.Verify(ed25519.PublicKey(s83p.key), s83p.body, s83p.authorization)
+	key := s83p.key[0:len(s83p.key)] // TODO move to helper
+	return ed25519.Verify(ed25519.PublicKey(key), s83p.body, s83p.authorization)
 }
 
 var ErrMissingAuth = fmt.Errorf("missing Spring-83 Authorization header")
@@ -127,6 +152,7 @@ func parseAuthHeader(ah string) ([]byte, error) {
 }
 
 func (s *service) handlePut(w http.ResponseWriter, r *http.Request, key string) {
+	ctx := r.Context()
 	s83p, err := parseSpring83PostFromRequest(r)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest)+" "+err.Error(), http.StatusBadRequest)
@@ -134,6 +160,18 @@ func (s *service) handlePut(w http.ResponseWriter, r *http.Request, key string) 
 	}
 	if !s83p.Verify() {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	sr := &storageRecord{
+		body: s83p.body,
+		time: s83p.ifUnmodifiedSince, // TODO needs to come out of sig
+	}
+
+	err = s.storageProvider.Put(ctx, s83p.key, sr)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
