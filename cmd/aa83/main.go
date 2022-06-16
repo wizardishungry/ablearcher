@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"runtime/debug"
+)
 
 func main() {
-	fmt.Println("Welcome to able archer!")
+	bi, _ := debug.ReadBuildInfo()
+	fmt.Println(bi.Main)
+	e, _ := os.Executable()
+	fmt.Println(e)
+	// flag.NewFlagSet()
 }
