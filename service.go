@@ -167,7 +167,7 @@ func (s *service) handlePut(w http.ResponseWriter, r *http.Request, key string) 
 	sr := &storageRecord{
 		body: s83p.body,
 		auth: s83p.authorization,
-		time: s83p.ifUnmodifiedSince, // TODO needs to come out of sig
+		time: s83p.ifUnmodifiedSince, // TODO needs to come out of sig & be validated
 	}
 
 	err = s.storageProvider.Put(ctx, s83p.key, sr)
